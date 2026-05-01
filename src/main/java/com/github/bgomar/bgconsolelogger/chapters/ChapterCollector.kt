@@ -10,15 +10,15 @@ object ChapterCollector {
         val chapters = mutableListOf<Chapter>()
         val document: Document = file.viewProvider.document ?: return chapters
 
-        // ✅ Dynamically get CHAPTER_PATTERN from ConsoleLoggerSettings
-        val chapterPattern = ConsoleLoggerSettings.getPattern(27).trim()
-        val sectionPattern = ConsoleLoggerSettings.getPattern(28).trim()
-        val subsectionPattern = ConsoleLoggerSettings.getPattern(29).trim()
-
-        // Fetch pattern names dynamically
-        val chapterPatternName = ConsoleLoggerSettings.getPattern(30).trim()
-        val sectionPatternName = ConsoleLoggerSettings.getPattern(31).trim()
-        val subsectionPatternName = ConsoleLoggerSettings.getPattern(32).trim()
+        // ✅ Use per-file-type preset, fallback to global patterns
+        val fileType = file.virtualFile?.extension ?: ""
+        val preset = ConsoleLoggerSettings.getChapterPresetForFileType(fileType)
+        val chapterPattern = preset.chapter.trim()
+        val sectionPattern = preset.section.trim()
+        val subsectionPattern = preset.subsection.trim()
+        val chapterPatternName = preset.chapterPatternName.trim()
+        val sectionPatternName = preset.sectionPatternName.trim()
+        val subsectionPatternName = preset.subsectionPatternName.trim()
 
         val lines = document.text.split("\n")
         for ((index, line) in lines.withIndex()) {

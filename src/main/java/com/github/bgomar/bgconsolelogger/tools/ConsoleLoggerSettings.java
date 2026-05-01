@@ -11,6 +11,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @State(name = "ConsoleLoggerSettings", storages = {@Storage("consolelogger.xml")})
@@ -91,6 +92,9 @@ public final class ConsoleLoggerSettings implements PersistentStateComponent<Con
             SUBSECT_PATTERN_NAME
     ));
 
+    /** Per-file-type chapter presets (e.g. "tex", "java"). Key is file extension without dot. */
+    public List<ChapterPresetBean> chapterPresetsByFileType = new ArrayList<>();
+
     public String version = "0.0.35";
 
     public static ConsoleLoggerSettings getInstance() {
@@ -137,5 +141,82 @@ public final class ConsoleLoggerSettings implements PersistentStateComponent<Con
         } else {
             System.out.println("Cannot add more patterns. The list has reached its default limit.");
         }
+    }
+
+    // ----- Per-file-type chapter presets -----
+
+    /** Normalize file type to extension without leading dot, lowercase. */
+    public static String normalizeFileType(String fileType) {
+        if (fileType == null || fileType.isEmpty()) return "";
+        String ext = fileType.trim().toLowerCase();
+        if (ext.startsWith(".")) ext = ext.substring(1);
+        return ext;
+    }
+
+    /** Built-in defaults for TypeScript, JavaScript, SCSS, etc. when no saved preset exists. */
+    private static ChapterPresetBean getBuiltInChapterPresetForFileType(String key) {
+        switch (key) {
+            case "ts":
+            case "tsx":
+            case "js":
+            case "jsx":
+                // Section comments: // ====== , // ----- , // ---
+                return new ChapterPresetBean(key, "// =", "// -", "// ", "Ch:", "Sec:", "Sub:");
+            case "scss":
+            case "sass":
+            case "css":
+                // SCSS/CSS: // or /* section markers
+                return new ChapterPresetBean(key, "// =", "// -", "// ", "Ch:", "Sec:", "Sub:");
+            case "tex":
+                return new ChapterPresetBean(key, "\\chapter", "\\section", "\\subsection", "Ch:", "Sec:", "Sub:");
+            default:
+                return null;
+        }
+    }
+
+    /** Get chapter preset for the given file type. Order: saved preset → built-in (ts/js/scss/…) → global. */
+    public static ChapterPresetBean getChapterPresetForFileType(String fileType) {
+        ConsoleLoggerSettings settings = getInstance();
+        String key = normalizeFileType(fileType);
+        if (!key.isEmpty()) {
+            for (ChapterPresetBean bean : settings.chapterPresetsByFileType) {
+                if (key.equals(normalizeFileType(bean.getFileType()))) {
+                    return new ChapterPresetBean(bean.getFileType(), bean.getChapter(), bean.getSection(),
+                            bean.getSubsection(), bean.getChapterPatternName(), bean.getSectionPatternName(),
+                            bean.getSubsectionPatternName());
+                }
+            }
+            ChapterPresetBean builtIn = getBuiltInChapterPresetForFileType(key);
+            if (builtIn != null) return builtIn;
+        }
+        return new ChapterPresetBean(key,
+                getPattern(27), getPattern(28), getPattern(29),
+                getPattern(30), getPattern(31), getPattern(32));
+    }
+
+    /** Save chapter preset for the given file type. */
+    public static void setChapterPresetForFileType(String fileType, ChapterPresetBean preset) {
+        if (preset == null) return;
+        ConsoleLoggerSettings settings = getInstance();
+        String key = normalizeFileType(fileType);
+        if (key.isEmpty()) return;
+        preset.setFileType(key);
+        for (int i = 0; i < settings.chapterPresetsByFileType.size(); i++) {
+            if (key.equals(normalizeFileType(settings.chapterPresetsByFileType.get(i).getFileType()))) {
+                settings.chapterPresetsByFileType.set(i, preset);
+                return;
+            }
+        }
+        settings.chapterPresetsByFileType.add(preset);
+    }
+
+    /** File types that have a saved preset, for UI dropdown. */
+    public static List<String> getChapterPresetFileTypes() {
+        ConsoleLoggerSettings settings = getInstance();
+        return settings.chapterPresetsByFileType.stream()
+                .map(ChapterPresetBean::getFileType)
+                .filter(ft -> ft != null && !ft.isEmpty())
+                .distinct()
+                .collect(Collectors.toList());
     }
 }

@@ -2,6 +2,7 @@ package com.github.bgomar.bgconsolelogger.toolwindow.setup;
 
 import com.github.bgomar.bgconsolelogger.chapters.Chapter;
 import com.github.bgomar.bgconsolelogger.chapters.ChapterCollector;
+import com.github.bgomar.bgconsolelogger.tools.ChapterPresetBean;
 import com.github.bgomar.bgconsolelogger.tools.ConsoleLoggerSettings;
 import com.github.bgomar.consolelogger.ChapterSettingsDialog;
 import com.intellij.openapi.Disposable;
@@ -63,114 +64,23 @@ public class ChapterToolSetup  implements Disposable {
 
     public void setup() {
         updateChapterList();
+        loadPresetForCurrentFileType();
 
-        // Initialize text fields with their current pattern values
-        chapterTextField.setText(ConsoleLoggerSettings.getPattern(27));
-        sectionTextField.setText(ConsoleLoggerSettings.getPattern(28));
-        subsectionTextField.setText(ConsoleLoggerSettings.getPattern(29));
-        chapterPatternNameTextField.setText(ConsoleLoggerSettings.getPattern(30));
-        sectionPatternNameTextField.setText(ConsoleLoggerSettings.getPattern(31));
-        subsectionPatternNameTextField.setText(ConsoleLoggerSettings.getPattern(32));
-
-        // Add DocumentListeners to refresh the chapter list on changes
-        chapterTextField.getDocument().addDocumentListener(new DocumentListener() {
+        // Add DocumentListeners to refresh the chapter list and save preset for current file type
+        DocumentListener presetUpdater = new DocumentListener() {
             @Override
-            public void insertUpdate(DocumentEvent e) { updatePatternAndRefresh(27, chapterTextField); }
+            public void insertUpdate(DocumentEvent e) { savePresetFromFieldsAndRefresh(); }
             @Override
-            public void removeUpdate(DocumentEvent e) { updatePatternAndRefresh(27, chapterTextField); }
+            public void removeUpdate(DocumentEvent e) { savePresetFromFieldsAndRefresh(); }
             @Override
-            public void changedUpdate(DocumentEvent e) { updatePatternAndRefresh(27, chapterTextField); }
-        });
-        sectionTextField.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent e) { updatePatternAndRefresh(28, sectionTextField); }
-            @Override
-            public void removeUpdate(DocumentEvent e) { updatePatternAndRefresh(28, sectionTextField); }
-            @Override
-            public void changedUpdate(DocumentEvent e) { updatePatternAndRefresh(28, sectionTextField); }
-        });
-        subsectionTextField.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent e) { updatePatternAndRefresh(29, subsectionTextField); }
-            @Override
-            public void removeUpdate(DocumentEvent e) { updatePatternAndRefresh(29, subsectionTextField); }
-            @Override
-            public void changedUpdate(DocumentEvent e) { updatePatternAndRefresh(29, subsectionTextField); }
-        });
-        chapterPatternNameTextField.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent e) { updatePatternAndRefresh(30, chapterPatternNameTextField); }
-            @Override
-            public void removeUpdate(DocumentEvent e) { updatePatternAndRefresh(30, chapterPatternNameTextField); }
-            @Override
-            public void changedUpdate(DocumentEvent e) { updatePatternAndRefresh(30, chapterPatternNameTextField); }
-        });
-        sectionPatternNameTextField.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent e) { updatePatternAndRefresh(31, sectionPatternNameTextField); }
-            @Override
-            public void removeUpdate(DocumentEvent e) { updatePatternAndRefresh(31, sectionPatternNameTextField); }
-            @Override
-            public void changedUpdate(DocumentEvent e) { updatePatternAndRefresh(31, sectionPatternNameTextField); }
-        });
-        subsectionPatternNameTextField.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent e) { updatePatternAndRefresh(32, subsectionPatternNameTextField); }
-            @Override
-            public void removeUpdate(DocumentEvent e) { updatePatternAndRefresh(32, subsectionPatternNameTextField); }
-            @Override
-            public void changedUpdate(DocumentEvent e) { updatePatternAndRefresh(32, subsectionPatternNameTextField); }
-        });
-
-        // Add KeyListeners to detect changes
-        chapterTextField.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyReleased(KeyEvent e) {
-                String newPattern = chapterTextField.getText();
-                ConsoleLoggerSettings.setPattern(27, newPattern);
-                logger.info("✍️ Updated CHAPTER_PATTERN: " + newPattern);
-            }
-        });
-        sectionTextField.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyReleased(KeyEvent e) {
-                String newPattern = sectionTextField.getText();
-                ConsoleLoggerSettings.setPattern(28, newPattern);
-                logger.info("✍️ Updated SECTION_PATTERN: " + newPattern);
-            }
-        });
-        subsectionTextField.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyReleased(KeyEvent e) {
-                String newPattern = subsectionTextField.getText();
-                ConsoleLoggerSettings.setPattern(29, newPattern);
-                logger.info("✍️ Updated SUBSECTION_PATTERN: " + newPattern);
-            }
-        });
-        chapterPatternNameTextField.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyReleased(KeyEvent e) {
-                String newPattern = chapterPatternNameTextField.getText(); // Ensure the method call matches the expected signature
-                ConsoleLoggerSettings.setPattern(30, newPattern);
-                logger.info("✍️ Updated CHAPTER_PATTERN_NAME: " + newPattern);
-            }
-        });
-        sectionPatternNameTextField.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyReleased(KeyEvent e) {
-                String newPattern = sectionPatternNameTextField.getText();
-                ConsoleLoggerSettings.setPattern(31, newPattern);
-                logger.info("✍️ Updated SECTION_PATTERN_NAME: " + newPattern);
-            }
-        });
-        subsectionPatternNameTextField.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyReleased(KeyEvent e) {
-                String newPattern = subsectionPatternNameTextField.getText();
-                ConsoleLoggerSettings.setPattern(32, newPattern);
-                logger.info("✍️ Updated SUBSECTION_PATTERN_NAME: " + newPattern);
-            }
-        });
+            public void changedUpdate(DocumentEvent e) { savePresetFromFieldsAndRefresh(); }
+        };
+        chapterTextField.getDocument().addDocumentListener(presetUpdater);
+        sectionTextField.getDocument().addDocumentListener(presetUpdater);
+        subsectionTextField.getDocument().addDocumentListener(presetUpdater);
+        chapterPatternNameTextField.getDocument().addDocumentListener(presetUpdater);
+        sectionPatternNameTextField.getDocument().addDocumentListener(presetUpdater);
+        subsectionPatternNameTextField.getDocument().addDocumentListener(presetUpdater);
 
         // ✅ Handle file selection changes
         project.getMessageBus().connect().subscribe(
@@ -178,6 +88,7 @@ public class ChapterToolSetup  implements Disposable {
                     @Override
                     public void fileOpened(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
                         logger.info("📂 File opened: " + file.getName());
+                        loadPresetForCurrentFileType();
                         updateChapterList();
                     }
 
@@ -186,6 +97,7 @@ public class ChapterToolSetup  implements Disposable {
                         VirtualFile newFile = event.getNewFile();
                         if (newFile != null) {
                             logger.info("🔄 Switched to file: " + newFile.getName());
+                            loadPresetForCurrentFileType();
                             updateChapterList();
                         }
                     }
@@ -225,40 +137,64 @@ public class ChapterToolSetup  implements Disposable {
 
         // Add settings button event listener
         chapterSettingsButton.addActionListener(e -> {
-            // Show the Kotlin dialog (ChapterSettingsDialog)
+            String fileType = getCurrentFileType();
+            ChapterPresetBean current = ConsoleLoggerSettings.getChapterPresetForFileType(fileType);
             ChapterSettingsDialog dialog = new ChapterSettingsDialog(
-                chapterTextField.getText(),
-                sectionTextField.getText(),
-                subsectionTextField.getText(),
-                chapterPatternNameTextField.getText(),
-                sectionPatternNameTextField.getText(),
-                subsectionPatternNameTextField.getText()
+                current.getChapter(),
+                current.getSection(),
+                current.getSubsection(),
+                current.getChapterPatternName(),
+                current.getSectionPatternName(),
+                current.getSubsectionPatternName(),
+                fileType
             );
             dialog.show();
             if (dialog.isOK()) {
-                chapterTextField.setText(dialog.getChapter());
-                sectionTextField.setText(dialog.getSection());
-                subsectionTextField.setText(dialog.getSubsection());
-                chapterPatternNameTextField.setText(dialog.getChapterPatternName());
-                sectionPatternNameTextField.setText(dialog.getSectionPatternName());
-                subsectionPatternNameTextField.setText(dialog.getSubsectionPatternName());
-                ConsoleLoggerSettings.setPattern(27, dialog.getChapter());
-                ConsoleLoggerSettings.setPattern(28, dialog.getSection());
-                ConsoleLoggerSettings.setPattern(29, dialog.getSubsection());
-                ConsoleLoggerSettings.setPattern(30, dialog.getChapterPatternName());
-                ConsoleLoggerSettings.setPattern(31, dialog.getSectionPatternName());
-                ConsoleLoggerSettings.setPattern(32, dialog.getSubsectionPatternName());
+                loadPresetForCurrentFileType();
                 updateChapterList();
             }
         });
     }
 
-    // Helper method to update pattern and refresh the list
-    private void updatePatternAndRefresh(int patternKey, JTextField field) {
-        String newPattern = field.getText();
-        ConsoleLoggerSettings.setPattern(patternKey, newPattern);
+    private String getCurrentFileType() {
+        PsiFile file = getCurrentFile();
+        if (file == null || file.getVirtualFile() == null) return "";
+        String ext = file.getVirtualFile().getExtension();
+        return ext != null ? ext : "";
+    }
 
-        // ✅ Refresh chapter list dynamically
+    private void loadPresetForCurrentFileType() {
+        String fileType = getCurrentFileType();
+        ChapterPresetBean preset = ConsoleLoggerSettings.getChapterPresetForFileType(fileType);
+        chapterTextField.setText(preset.getChapter());
+        sectionTextField.setText(preset.getSection());
+        subsectionTextField.setText(preset.getSubsection());
+        chapterPatternNameTextField.setText(preset.getChapterPatternName());
+        sectionPatternNameTextField.setText(preset.getSectionPatternName());
+        subsectionPatternNameTextField.setText(preset.getSubsectionPatternName());
+    }
+
+    private void savePresetFromFieldsAndRefresh() {
+        String fileType = getCurrentFileType();
+        ChapterPresetBean preset = new ChapterPresetBean(
+            fileType,
+            chapterTextField.getText(),
+            sectionTextField.getText(),
+            subsectionTextField.getText(),
+            chapterPatternNameTextField.getText(),
+            sectionPatternNameTextField.getText(),
+            subsectionPatternNameTextField.getText()
+        );
+        if (fileType.isEmpty()) {
+            ConsoleLoggerSettings.setPattern(27, preset.getChapter());
+            ConsoleLoggerSettings.setPattern(28, preset.getSection());
+            ConsoleLoggerSettings.setPattern(29, preset.getSubsection());
+            ConsoleLoggerSettings.setPattern(30, preset.getChapterPatternName());
+            ConsoleLoggerSettings.setPattern(31, preset.getSectionPatternName());
+            ConsoleLoggerSettings.setPattern(32, preset.getSubsectionPatternName());
+        } else {
+            ConsoleLoggerSettings.setChapterPresetForFileType(fileType, preset);
+        }
         updateChapterList();
     }
 
